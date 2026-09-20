@@ -155,43 +155,43 @@ def initialize_user_database():
 
     drivers = [
 
-        (
-            "Demo Driver 1",
-            "TS09PA3330",
-            "Scooty",
-            "1662",
-            "8688072565",
-            "drivers/driver1.jpg"
-        ),
+    (
+        "Ravi Kumar",
+        "TS09PA3330",
+        "Scooty",
+        "1662",
+        "8688072565",
+        "drivers/driver1.jpg"
+    ),
 
-        (
-            "Demo Driver 2",
-            "TS10EX2850",
-            "Bike",
-            "2850",
-            "8688072565",
-            "drivers/driver2.jpg"
-        ),
+    (
+        "Suresh Reddy",
+        "TS10EX2850",
+        "Bike",
+        "2850",
+        "8688072565",
+        "drivers/driver2.jpg"
+    ),
 
-        (
-            "Demo Driver 3",
-            "TS10ED8176",
-            "Bike",
-            "8176",
-            "8688072565",
-            "drivers/driver3.jpg"
-        ),
+    (
+        "Arjun Varma",
+        "MH43BA2518",
+        "Bike",
+        "2518",
+        "8688072565",
+        "drivers/driver3.jpg"
+    ),
 
-        (
-            "Demo Driver 4",
-            "TS09AB1234",
-            "Car",
-            "1234",
-            "8688072565",
-            "drivers/driver4.jpg"
-        )
+    (
+        "Kiran Kumar",
+        "TS09AB1234",
+        "Car",
+        "1234",
+        "8688072565",
+        "drivers/driver4.jpg"
+    )
 
-    ]
+]
 
     # ========================================================
     # INSERT / UPDATE
