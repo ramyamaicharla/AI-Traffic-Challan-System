@@ -1,5 +1,7 @@
 ﻿import os
 import urllib.parse
+import sqlite3
+
 import streamlit as st
 
 from violation_detection import (
@@ -8,6 +10,43 @@ from violation_detection import (
     get_fine,
     get_user
 )
+
+
+def initialize_chalan_database():
+
+    conn = sqlite3.connect("Chalan.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS violations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        violation_name TEXT NOT NULL UNIQUE,
+        fine INTEGER NOT NULL
+    )
+    """)
+
+    violations = [
+        ("Triple Ride", 1000),
+        ("No Parking", 100),
+        ("No Helmet", 200),
+        ("Overspeed", 1000)
+    ]
+
+    cursor.executemany("""
+    INSERT OR IGNORE INTO violations
+    (
+        violation_name,
+        fine
+    )
+    VALUES (?, ?)
+    """, violations)
+
+    conn.commit()
+    conn.close()
+
+
+initialize_chalan_database()
+
 
 
 # =========================================================
