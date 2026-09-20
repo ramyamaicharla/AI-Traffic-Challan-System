@@ -5,6 +5,11 @@ import sqlite3
 from dotenv import load_dotenv
 from groq import Groq
 
+
+# =========================================================
+# LOAD ENVIRONMENT VARIABLES
+# =========================================================
+
 load_dotenv()
 
 
@@ -57,6 +62,8 @@ def detect_violation(image_path):
 
         model="qwen/qwen3.8-27b",
 
+        max_tokens=100,
+
         messages=[
 
             {
@@ -99,8 +106,10 @@ Do not provide:
                         "type": "image_url",
 
                         "image_url": {
+
                             "url":
                             f"data:image/jpeg;base64,{image_base64}"
+
                         }
                     }
 
@@ -163,7 +172,9 @@ Do not provide:
         return "Overspeed"
 
 
-    # Handle slight model variations
+    # =====================================================
+    # HANDLE SLIGHT MODEL VARIATIONS
+    # =====================================================
 
     if "triple" in result_lower:
 
@@ -204,6 +215,8 @@ def detect_number_plate(image_path):
     response = client.chat.completions.create(
 
         model="qwen/qwen3.8-27b",
+
+        max_tokens=100,
 
         messages=[
 
@@ -249,8 +262,10 @@ TS10EX2850
                         "type": "image_url",
 
                         "image_url": {
+
                             "url":
                             f"data:image/jpeg;base64,{image_base64}"
+
                         }
                     }
 
@@ -355,17 +370,16 @@ TS10EX2850
 
     # =====================================================
     # TAKE LAST NON-EMPTY LINE
-    #
-    # This protects against responses such as:
-    #
-    # The plate appears to be...
-    # TS10EX2850
     # =====================================================
 
     lines = [
+
         line.strip()
+
         for line in result.splitlines()
+
         if line.strip()
+
     ]
 
 
@@ -379,9 +393,13 @@ TS10EX2850
     # =====================================================
 
     result = "".join(
+
         ch
+
         for ch in result.upper()
+
         if ch.isalnum()
+
     )
 
 
@@ -401,12 +419,15 @@ def get_fine(violation):
     cursor = conn.cursor()
 
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT fine
         FROM violations
         WHERE LOWER(violation_name)
         = LOWER(?)
-    """, (violation,))
+        """,
+        (violation,)
+    )
 
 
     row = cursor.fetchone()
@@ -444,7 +465,8 @@ def get_user(number_plate):
     # GET ALL USER DETAILS
     # =====================================================
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             name,
             vehicle_reg,
@@ -453,7 +475,8 @@ def get_user(number_plate):
             mobile,
             driver_photo
         FROM users
-    """)
+        """
+    )
 
 
     rows = cursor.fetchall()
@@ -487,8 +510,13 @@ def get_user(number_plate):
 if __name__ == "__main__":
 
     print()
+
     print("--------------------------------")
-    print("TRAFFIC VIOLATION DETECTION")
+
+    print(
+        "TRAFFIC VIOLATION DETECTION"
+    )
+
     print("--------------------------------")
 
 
@@ -576,6 +604,7 @@ if __name__ == "__main__":
     if user:
 
         print()
+
         print(
             "--------------------------------"
         )
@@ -623,6 +652,7 @@ if __name__ == "__main__":
     else:
 
         print()
+
         print(
             "--------------------------------"
         )
