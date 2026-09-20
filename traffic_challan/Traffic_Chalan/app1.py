@@ -71,11 +71,11 @@ def initialize_user_database():
 
     users = [
         (
-            "Maicharla Raju",
-            "TS10ED8176",
+            "Demo User",
+            "TS10EX2850",
             "Scooty",
             "1662",
-            "7729083565",
+            "9000000000",
             "drivers/driver1.jpg"
         )
     ]
@@ -414,6 +414,7 @@ if uploaded_file is not None:
                 )
 
                 st.stop()
+
 
         if not violation:
 
