@@ -75,7 +75,7 @@ def initialize_user_database():
             "TS10EX2850",
             "Scooty",
             "1662",
-            "9000000000",
+            "8688072565",
             "drivers/driver1.jpg"
         )
     ]
