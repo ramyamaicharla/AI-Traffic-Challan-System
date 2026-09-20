@@ -83,22 +83,17 @@ def initialize_chalan_database():
         """
         CREATE TABLE IF NOT EXISTS violations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            violation_type TEXT UNIQUE,
-            fine INTEGER
+            violation_type TEXT UNIQUE NOT NULL,
+            fine INTEGER NOT NULL
         )
         """
     )
 
     violations = [
-
         ("Triple Ride", 1000),
-
         ("No Parking", 100),
-
         ("No Helmet", 200),
-
         ("Overspeed", 1000)
-
     ]
 
     for violation, fine in violations:
@@ -123,7 +118,6 @@ def initialize_chalan_database():
         )
 
     conn.commit()
-
     conn.close()
 
 
@@ -154,7 +148,7 @@ def initialize_user_database():
     )
 
     # ========================================================
-    # FOUR DRIVER RECORDS
+    # DRIVER RECORDS
     # ========================================================
 
     drivers = [
@@ -198,7 +192,7 @@ def initialize_user_database():
     ]
 
     # ========================================================
-    # INSERT / UPDATE
+    # INSERT / UPDATE DRIVER RECORDS
     # ========================================================
 
     for driver in drivers:
@@ -214,7 +208,6 @@ def initialize_user_database():
                 mobile,
                 driver_photo
             )
-
             VALUES (?, ?, ?, ?, ?, ?)
 
             ON CONFLICT(vehicle_reg)
@@ -238,7 +231,6 @@ def initialize_user_database():
         )
 
     conn.commit()
-
     conn.close()
 
 
@@ -247,80 +239,7 @@ def initialize_user_database():
 # ============================================================
 
 initialize_chalan_database()
-
 initialize_user_database()
-
-
-# ============================================================
-# CUSTOM CSS
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-
-    .main-title {
-        font-size: 40px;
-        font-weight: 700;
-        margin-bottom: 5px;
-    }
-
-    .sub-title {
-        font-size: 18px;
-        color: #666;
-        margin-bottom: 25px;
-    }
-
-    .plate-box {
-        padding: 25px;
-        border-radius: 15px;
-        border: 2px solid #ddd;
-        text-align: center;
-        background-color: white;
-        margin-top: 10px;
-        margin-bottom: 20px;
-    }
-
-    .plate-text {
-        font-size: 32px;
-        font-weight: bold;
-        letter-spacing: 4px;
-        margin-top: 10px;
-    }
-
-    .detail-card {
-        background-color: #f8f9fa;
-        border: 1px solid #dddddd;
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 10px;
-        font-size: 16px;
-    }
-
-    .name-card {
-        background-color: #f8f9fa;
-        border: 1px solid #dddddd;
-        border-radius: 12px;
-        padding: 18px;
-        margin-bottom: 12px;
-    }
-
-    .name-label {
-        font-size: 14px;
-        color: #666666;
-        margin-bottom: 5px;
-    }
-
-    .name-value {
-        font-size: 25px;
-        font-weight: 700;
-        color: #222222;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
 
 # ============================================================
@@ -371,24 +290,14 @@ with st.sidebar:
 # MAIN HEADER
 # ============================================================
 
-st.markdown(
-    """
-    <div class="main-title">
-        🚦 AI Traffic Challan System
-    </div>
-    """,
-    unsafe_allow_html=True
+st.title(
+    "🚦 AI Traffic Challan System"
 )
 
-st.markdown(
-    """
-    <div class="sub-title">
-        AI-powered traffic violation detection,
-        number plate recognition and
-        automated challan generation.
-    </div>
-    """,
-    unsafe_allow_html=True
+st.write(
+    "AI-powered traffic violation detection, "
+    "number plate recognition and "
+    "automated challan generation."
 )
 
 
@@ -411,13 +320,13 @@ uploaded_file = st.file_uploader(
 
 
 # ============================================================
-# PROCESS UPLOADED IMAGE
+# PROCESS IMAGE
 # ============================================================
 
 if uploaded_file is not None:
 
     # --------------------------------------------------------
-    # Save image
+    # SAVE IMAGE
     # --------------------------------------------------------
 
     image_path = os.path.join(
@@ -434,12 +343,14 @@ if uploaded_file is not None:
             uploaded_file.getbuffer()
         )
 
+
     st.success(
         "Image uploaded successfully."
     )
 
+
     # --------------------------------------------------------
-    # Preview
+    # IMAGE PREVIEW
     # --------------------------------------------------------
 
     st.image(
@@ -448,10 +359,12 @@ if uploaded_file is not None:
         use_container_width=True
     )
 
+
     st.divider()
 
+
     # ========================================================
-    # GENERATE CHALLAN
+    # GENERATE CHALLAN BUTTON
     # ========================================================
 
     if st.button(
@@ -465,7 +378,7 @@ if uploaded_file is not None:
         # ====================================================
 
         with st.spinner(
-            "Detecting traffic violation..."
+            "🤖 Detecting traffic violation..."
         ):
 
             try:
@@ -503,7 +416,7 @@ if uploaded_file is not None:
         # ====================================================
 
         with st.spinner(
-            "Detecting vehicle number plate..."
+            "🔎 Detecting vehicle number plate..."
         ):
 
             try:
@@ -547,10 +460,10 @@ if uploaded_file is not None:
 
 
         # ====================================================
-        # RESULT
+        # DETECTION RESULTS
         # ====================================================
 
-        st.markdown("---")
+        st.divider()
 
         st.header(
             "🚨 Violation Detection Result"
@@ -592,28 +505,15 @@ if uploaded_file is not None:
 
 
         # ====================================================
-        # DETECTED PLATE
+        # DETECTED NUMBER PLATE
         # ====================================================
 
         st.subheader(
             "🔢 Detected Number Plate"
         )
 
-        st.markdown(
-            f"""
-            <div class="plate-box">
-
-                <div>
-                    🔢 DETECTED NUMBER PLATE
-                </div>
-
-                <div class="plate-text">
-                    {number_plate}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
+        st.info(
+            f"Detected Vehicle Number: {number_plate}"
         )
 
 
@@ -647,6 +547,7 @@ if uploaded_file is not None:
             st.success(
                 "✅ Vehicle owner found successfully."
             )
+
 
             st.subheader(
                 "👤 Vehicle Owner Details"
@@ -698,8 +599,7 @@ if uploaded_file is not None:
                     else:
 
                         st.warning(
-                            f"Driver photo not found: "
-                            f"{driver_photo}"
+                            "Driver photo not found."
                         )
 
                 else:
@@ -715,93 +615,29 @@ if uploaded_file is not None:
 
             with owner_col2:
 
-                # ---------------------------------------------
-                # NAME
-                # ---------------------------------------------
-
-                st.markdown(
-                    f"""
-                    <div class="name-card">
-
-                        <div class="name-label">
-                            👤 Driver Name
-                        </div>
-
-                        <div class="name-value">
-                            {owner.get('name', 'N/A')}
-                        </div>
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                st.write(
+                    f"**Driver Name:** "
+                    f"{owner.get('name', 'N/A')}"
                 )
 
-
-                # ---------------------------------------------
-                # VEHICLE NUMBER
-                # ---------------------------------------------
-
-                st.markdown(
-                    f"""
-                    <div class="detail-card">
-
-                        🚗 <b>Vehicle Number:</b>
-                        {owner.get('vehicle_reg', 'N/A')}
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                st.write(
+                    f"**Vehicle Number:** "
+                    f"{owner.get('vehicle_reg', 'N/A')}"
                 )
 
-
-                # ---------------------------------------------
-                # VEHICLE TYPE
-                # ---------------------------------------------
-
-                st.markdown(
-                    f"""
-                    <div class="detail-card">
-
-                        🏍️ <b>Vehicle Type:</b>
-                        {owner.get('vehicle_type', 'N/A')}
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                st.write(
+                    f"**Vehicle Type:** "
+                    f"{owner.get('vehicle_type', 'N/A')}"
                 )
 
-
-                # ---------------------------------------------
-                # VEHICLE ID
-                # ---------------------------------------------
-
-                st.markdown(
-                    f"""
-                    <div class="detail-card">
-
-                        🔢 <b>Vehicle ID:</b>
-                        {owner.get('vehnum', 'N/A')}
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                st.write(
+                    f"**Vehicle ID:** "
+                    f"{owner.get('vehnum', 'N/A')}"
                 )
 
-
-                # ---------------------------------------------
-                # MOBILE
-                # ---------------------------------------------
-
-                st.markdown(
-                    f"""
-                    <div class="detail-card">
-
-                        📱 <b>Mobile:</b>
-                        {owner.get('mobile', 'N/A')}
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                st.write(
+                    f"**Mobile:** "
+                    f"{owner.get('mobile', 'N/A')}"
                 )
 
 
@@ -859,7 +695,7 @@ if uploaded_file is not None:
 
 
             # =================================================
-            # WHATSAPP
+            # WHATSAPP CHALLAN
             # =================================================
 
             st.subheader(
@@ -894,9 +730,9 @@ if uploaded_file is not None:
                     whatsapp_number = mobile
 
 
-                # ---------------------------------------------
-                # WHATSAPP MESSAGE
-                # ---------------------------------------------
+                # ------------------------------------------------
+                # MESSAGE
+                # ------------------------------------------------
 
                 message = f"""
 🚦 TRAFFIC CHALLAN NOTIFICATION
@@ -912,14 +748,13 @@ Fine Amount: ₹{fine}
 Please pay the applicable traffic fine.
 
 Thank you.
+
 AI Traffic Challan System
 """
 
 
-                encoded_message = (
-                    urllib.parse.quote(
-                        message.strip()
-                    )
+                encoded_message = urllib.parse.quote(
+                    message.strip()
                 )
 
 
@@ -963,24 +798,9 @@ AI Traffic Challan System
                 "but no matching owner was found."
             )
 
-
-            st.markdown(
-                f"""
-                <div class="plate-box">
-
-                    <div>
-                        🔢 DETECTED NUMBER PLATE
-                    </div>
-
-                    <div class="plate-text">
-                        {number_plate}
-                    </div>
-
-                </div>
-                """,
-                unsafe_allow_html=True
+            st.info(
+                f"Detected Vehicle Number: {number_plate}"
             )
-
 
             st.info(
                 "Please register this vehicle in the "
