@@ -4,6 +4,11 @@ import sqlite3
 
 import streamlit as st
 
+
+st.title("AI Traffic Challan System")
+st.write("App started successfully!")
+
+
 from violation_detection import (
     detect_violation,
     detect_number_plate,
