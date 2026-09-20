@@ -7,7 +7,7 @@ from groq import Groq
 
 
 # ============================================================
-# BASE DIRECTORY
+# BASE PATH
 # ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -17,17 +17,12 @@ USER_DB = os.path.join(BASE_DIR, "user.db")
 
 
 # ============================================================
-# LOAD ENVIRONMENT VARIABLES
+# GROQ CONFIGURATION
 # ============================================================
 
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-
-# ============================================================
-# GROQ CLIENT
-# ============================================================
 
 if not GROQ_API_KEY:
     raise ValueError(
@@ -35,9 +30,7 @@ if not GROQ_API_KEY:
         "Add it to .env or Streamlit Secrets."
     )
 
-client = Groq(
-    api_key=GROQ_API_KEY
-)
+client = Groq(api_key=GROQ_API_KEY)
 
 
 # ============================================================
@@ -48,11 +41,9 @@ def image_to_base64(image_path):
 
     with open(image_path, "rb") as image_file:
 
-        encoded_image = base64.b64encode(
+        return base64.b64encode(
             image_file.read()
         ).decode("utf-8")
-
-    return encoded_image
 
 
 # ============================================================
@@ -61,27 +52,25 @@ def image_to_base64(image_path):
 
 def detect_violation(image_path):
 
-    image_base64 = image_to_base64(
-        image_path
-    )
+    image_base64 = image_to_base64(image_path)
 
     response = client.chat.completions.create(
 
-        model="qwen/qwen3-32b",
+        model="qwen/qwen3.8-27b",
 
         messages=[
             {
                 "role": "user",
 
                 "content": [
+
                     {
                         "type": "text",
 
                         "text": """
 Analyze this traffic image.
 
-Identify the main traffic violation visible
-in the image.
+Identify the main traffic violation visible in the image.
 
 Possible violations are:
 
@@ -90,7 +79,7 @@ Possible violations are:
 3. No Helmet
 4. Overspeed
 
-Return ONLY ONE of the following exact names:
+Return ONLY ONE exact name:
 
 Triple Ride
 No Parking
@@ -105,10 +94,9 @@ Do not provide explanation.
                         "type": "image_url",
 
                         "image_url": {
-                            "url": (
-                                "data:image/jpeg;base64,"
-                                + image_base64
-                            )
+                            "url":
+                            "data:image/jpeg;base64,"
+                            + image_base64
                         }
                     }
                 ]
@@ -118,13 +106,13 @@ Do not provide explanation.
         max_tokens=100
     )
 
+
     result = response.choices[0].message.content.strip()
 
-    # --------------------------------------------------------
-    # Normalize AI response
-    # --------------------------------------------------------
-
     result_lower = result.lower()
+
+
+    # Normalize model response
 
     if "triple" in result_lower:
 
@@ -142,9 +130,8 @@ Do not provide explanation.
 
         return "Overspeed"
 
-    else:
 
-        return result
+    return result
 
 
 # ============================================================
@@ -153,19 +140,19 @@ Do not provide explanation.
 
 def detect_number_plate(image_path):
 
-    image_base64 = image_to_base64(
-        image_path
-    )
+    image_base64 = image_to_base64(image_path)
+
 
     response = client.chat.completions.create(
 
-        model="qwen/qwen3-32b",
+        model="qwen/qwen3.8-27b",
 
         messages=[
             {
                 "role": "user",
 
                 "content": [
+
                     {
                         "type": "text",
 
@@ -183,14 +170,14 @@ TS10EX2850
 TS10ED8176
 
 Do not return:
+
 - explanation
 - spaces
 - hyphens
 - quotation marks
 - other text
 
-If no number plate is visible,
-return:
+If no number plate is visible, return:
 
 NOT DETECTED
 """
@@ -200,10 +187,9 @@ NOT DETECTED
                         "type": "image_url",
 
                         "image_url": {
-                            "url": (
-                                "data:image/jpeg;base64,"
-                                + image_base64
-                            )
+                            "url":
+                            "data:image/jpeg;base64,"
+                            + image_base64
                         }
                     }
                 ]
@@ -213,11 +199,11 @@ NOT DETECTED
         max_tokens=100
     )
 
+
     result = response.choices[0].message.content.strip()
 
-    # --------------------------------------------------------
-    # Clean result
-    # --------------------------------------------------------
+
+    # Clean OCR result
 
     result = (
         result
@@ -232,6 +218,7 @@ NOT DETECTED
         .replace(".", "")
     )
 
+
     return result
 
 
@@ -241,11 +228,10 @@ NOT DETECTED
 
 def get_fine(violation):
 
-    conn = sqlite3.connect(
-        CHALAN_DB
-    )
+    conn = sqlite3.connect(CHALAN_DB)
 
     cursor = conn.cursor()
+
 
     cursor.execute(
         """
@@ -253,14 +239,14 @@ def get_fine(violation):
         FROM violations
         WHERE LOWER(violation_type) = LOWER(?)
         """,
-        (
-            violation.strip(),
-        )
+        (violation.strip(),)
     )
+
 
     row = cursor.fetchone()
 
     conn.close()
+
 
     if row:
 
@@ -270,24 +256,18 @@ def get_fine(violation):
 
 
 # ============================================================
-# GET USER / VEHICLE OWNER
+# GET DRIVER / OWNER DETAILS
 # ============================================================
 
 def get_user(number_plate):
-
-    # --------------------------------------------------------
-    # IMPORTANT:
-    # Always use user.db inside Traffic_Chalan folder
-    # --------------------------------------------------------
 
     user_db_path = os.path.join(
         BASE_DIR,
         "user.db"
     )
 
-    # --------------------------------------------------------
-    # Normalize detected number
-    # --------------------------------------------------------
+
+    # Normalize number plate
 
     number_plate = (
         str(number_plate)
@@ -299,13 +279,11 @@ def get_user(number_plate):
         .strip()
     )
 
+
     if not number_plate:
 
         return None
 
-    # --------------------------------------------------------
-    # Connect to correct database
-    # --------------------------------------------------------
 
     conn = sqlite3.connect(
         user_db_path
@@ -315,29 +293,35 @@ def get_user(number_plate):
 
     cursor = conn.cursor()
 
-    # --------------------------------------------------------
-    # Check users table
-    # --------------------------------------------------------
+
+    # Make sure users table exists
 
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS users (
+
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+
             name TEXT NOT NULL,
+
             vehicle_reg TEXT UNIQUE NOT NULL,
+
             vehicle_type TEXT,
+
             vehnum TEXT,
+
             mobile TEXT,
+
             driver_photo TEXT
         )
         """
     )
 
+
     conn.commit()
 
-    # --------------------------------------------------------
-    # Search vehicle
-    # --------------------------------------------------------
+
+    # Search normalized registration number
 
     cursor.execute(
         """
@@ -349,8 +333,11 @@ def get_user(number_plate):
             vehnum,
             mobile,
             driver_photo
+
         FROM users
-        WHERE REPLACE(
+
+        WHERE
+            REPLACE(
                 REPLACE(
                     UPPER(vehicle_reg),
                     ' ',
@@ -358,23 +345,20 @@ def get_user(number_plate):
                 ),
                 '-',
                 ''
-              ) = ?
+            ) = ?
         """,
-        (
-            number_plate,
-        )
+        (number_plate,)
     )
+
 
     row = cursor.fetchone()
 
     conn.close()
 
-    # --------------------------------------------------------
-    # Return owner
-    # --------------------------------------------------------
 
     if row:
 
         return dict(row)
+
 
     return None
