@@ -105,12 +105,16 @@ def initialize_chalan_database():
 
         cursor.execute(
             """
-            INSERT OR IGNORE INTO violations
+            INSERT INTO violations
             (
                 violation_type,
                 fine
             )
             VALUES (?, ?)
+
+            ON CONFLICT(violation_type)
+            DO UPDATE SET
+                fine = excluded.fine
             """,
             (
                 violation,
@@ -155,43 +159,43 @@ def initialize_user_database():
 
     drivers = [
 
-    (
-        "Ravi Kumar",
-        "TS09PA3330",
-        "Scooty",
-        "1662",
-        "8688072565",
-        "drivers/driver1.jpg"
-    ),
+        (
+            "Ravi Kumar",
+            "TS09PA3330",
+            "Scooty",
+            "1662",
+            "8688072565",
+            "drivers/driver1.jpg"
+        ),
 
-    (
-        "Suresh Reddy",
-        "TS10EX2850",
-        "Bike",
-        "2850",
-        "8688072565",
-        "drivers/driver2.jpg"
-    ),
+        (
+            "Suresh Reddy",
+            "TS10EX2850",
+            "Bike",
+            "2850",
+            "8688072565",
+            "drivers/driver2.jpg"
+        ),
 
-    (
-        "Arjun Varma",
-        "MH43BA2518",
-        "Bike",
-        "2518",
-        "8688072565",
-        "drivers/driver3.jpg"
-    ),
+        (
+            "Arjun Varma",
+            "MH43BA2518",
+            "Bike",
+            "2518",
+            "8688072565",
+            "drivers/driver3.jpg"
+        ),
 
-    (
-        "Kiran Kumar",
-        "TS09AB1234",
-        "Car",
-        "1234",
-        "8688072565",
-        "drivers/driver4.jpg"
-    )
+        (
+            "Kiran Kumar",
+            "TS09AB1234",
+            "Car",
+            "1234",
+            "8688072565",
+            "drivers/driver4.jpg"
+        )
 
-]
+    ]
 
     # ========================================================
     # INSERT / UPDATE
@@ -210,6 +214,7 @@ def initialize_user_database():
                 mobile,
                 driver_photo
             )
+
             VALUES (?, ?, ?, ?, ?, ?)
 
             ON CONFLICT(vehicle_reg)
@@ -266,25 +271,50 @@ st.markdown(
         margin-bottom: 25px;
     }
 
-    .owner-card {
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #ddd;
-        background-color: #f8f9fa;
-    }
-
     .plate-box {
         padding: 25px;
         border-radius: 15px;
         border: 2px solid #ddd;
         text-align: center;
         background-color: white;
+        margin-top: 10px;
+        margin-bottom: 20px;
     }
 
     .plate-text {
         font-size: 32px;
         font-weight: bold;
         letter-spacing: 4px;
+        margin-top: 10px;
+    }
+
+    .detail-card {
+        background-color: #f8f9fa;
+        border: 1px solid #dddddd;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+
+    .name-card {
+        background-color: #f8f9fa;
+        border: 1px solid #dddddd;
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 12px;
+    }
+
+    .name-label {
+        font-size: 14px;
+        color: #666666;
+        margin-bottom: 5px;
+    }
+
+    .name-value {
+        font-size: 25px;
+        font-weight: 700;
+        color: #222222;
     }
 
     </style>
@@ -452,6 +482,7 @@ if uploaded_file is not None:
 
                 st.stop()
 
+
         # ====================================================
         # FINE CALCULATION
         # ====================================================
@@ -466,6 +497,7 @@ if uploaded_file is not None:
 
             fine = 0
 
+
         # ====================================================
         # NUMBER PLATE DETECTION
         # ====================================================
@@ -476,10 +508,8 @@ if uploaded_file is not None:
 
             try:
 
-                number_plate = (
-                    detect_number_plate(
-                        image_path
-                    )
+                number_plate = detect_number_plate(
+                    image_path
                 )
 
             except Exception as e:
@@ -489,6 +519,7 @@ if uploaded_file is not None:
                 )
 
                 st.stop()
+
 
         # ====================================================
         # CLEAN NUMBER PLATE
@@ -512,9 +543,8 @@ if uploaded_file is not None:
 
         else:
 
-            number_plate = (
-                "NOT DETECTED"
-            )
+            number_plate = "NOT DETECTED"
+
 
         # ====================================================
         # RESULT
@@ -526,13 +556,13 @@ if uploaded_file is not None:
             "🚨 Violation Detection Result"
         )
 
+
         # ====================================================
         # METRICS
         # ====================================================
 
-        col1, col2, col3 = st.columns(
-            3
-        )
+        col1, col2, col3 = st.columns(3)
+
 
         with col1:
 
@@ -541,12 +571,14 @@ if uploaded_file is not None:
                 violation
             )
 
+
         with col2:
 
             st.metric(
                 "💰 Fine Amount",
                 f"₹ {fine}"
             )
+
 
         with col3:
 
@@ -555,7 +587,35 @@ if uploaded_file is not None:
                 number_plate
             )
 
+
         st.divider()
+
+
+        # ====================================================
+        # DETECTED PLATE
+        # ====================================================
+
+        st.subheader(
+            "🔢 Detected Number Plate"
+        )
+
+        st.markdown(
+            f"""
+            <div class="plate-box">
+
+                <div>
+                    🔢 DETECTED NUMBER PLATE
+                </div>
+
+                <div class="plate-text">
+                    {number_plate}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
 
         # ====================================================
         # OWNER SEARCH
@@ -577,6 +637,7 @@ if uploaded_file is not None:
                     f"Owner database error: {e}"
                 )
 
+
         # ====================================================
         # OWNER FOUND
         # ====================================================
@@ -591,19 +652,22 @@ if uploaded_file is not None:
                 "👤 Vehicle Owner Details"
             )
 
+
             owner_col1, owner_col2 = st.columns(
                 [1, 2]
             )
 
-            # ------------------------------------------------
+
+            # =================================================
             # DRIVER PHOTO
-            # ------------------------------------------------
+            # =================================================
 
             with owner_col1:
 
                 driver_photo = owner.get(
                     "driver_photo"
                 )
+
 
                 if driver_photo:
 
@@ -619,6 +683,7 @@ if uploaded_file is not None:
                     else:
 
                         photo_path = driver_photo
+
 
                     if os.path.exists(
                         photo_path
@@ -643,75 +708,105 @@ if uploaded_file is not None:
                         "No driver photo registered."
                     )
 
-            # ------------------------------------------------
+
+            # =================================================
             # OWNER DETAILS
-            # ------------------------------------------------
+            # =================================================
 
             with owner_col2:
 
+                # ---------------------------------------------
+                # NAME
+                # ---------------------------------------------
+
                 st.markdown(
-                    '<div class="owner-card">',
+                    f"""
+                    <div class="name-card">
+
+                        <div class="name-label">
+                            👤 Driver Name
+                        </div>
+
+                        <div class="name-value">
+                            {owner.get('name', 'N/A')}
+                        </div>
+
+                    </div>
+                    """,
                     unsafe_allow_html=True
                 )
 
-                st.write(
-                    f"**👤 Name:** "
-                    f"{owner.get('name', 'N/A')}"
-                )
 
-                st.write(
-                    f"**🚗 Vehicle Number:** "
-                    f"{owner.get('vehicle_reg', 'N/A')}"
-                )
-
-                st.write(
-                    f"**🚘 Vehicle Type:** "
-                    f"{owner.get('vehicle_type', 'N/A')}"
-                )
-
-                st.write(
-                    f"**🔢 Vehicle ID:** "
-                    f"{owner.get('vehnum', 'N/A')}"
-                )
-
-                st.write(
-                    f"**📱 Mobile:** "
-                    f"{owner.get('mobile', 'N/A')}"
-                )
+                # ---------------------------------------------
+                # VEHICLE NUMBER
+                # ---------------------------------------------
 
                 st.markdown(
-                    '</div>',
+                    f"""
+                    <div class="detail-card">
+
+                        🚗 <b>Vehicle Number:</b>
+                        {owner.get('vehicle_reg', 'N/A')}
+
+                    </div>
+                    """,
                     unsafe_allow_html=True
                 )
 
+
+                # ---------------------------------------------
+                # VEHICLE TYPE
+                # ---------------------------------------------
+
+                st.markdown(
+                    f"""
+                    <div class="detail-card">
+
+                        🏍️ <b>Vehicle Type:</b>
+                        {owner.get('vehicle_type', 'N/A')}
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+
+                # ---------------------------------------------
+                # VEHICLE ID
+                # ---------------------------------------------
+
+                st.markdown(
+                    f"""
+                    <div class="detail-card">
+
+                        🔢 <b>Vehicle ID:</b>
+                        {owner.get('vehnum', 'N/A')}
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+
+                # ---------------------------------------------
+                # MOBILE
+                # ---------------------------------------------
+
+                st.markdown(
+                    f"""
+                    <div class="detail-card">
+
+                        📱 <b>Mobile:</b>
+                        {owner.get('mobile', 'N/A')}
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+
             st.divider()
 
-            # =================================================
-            # DETECTED PLATE
-            # =================================================
-
-            st.subheader(
-                "🔢 Detected Number Plate"
-            )
-
-            st.markdown(
-                f"""
-                <div class="plate-box">
-
-                    <div>
-                        🔢 DETECTED NUMBER PLATE
-                    </div>
-
-                    <div class="plate-text">
-                        {number_plate}
-                    </div>
-
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            st.divider()
 
             # =================================================
             # CHALLAN SUMMARY
@@ -721,9 +816,9 @@ if uploaded_file is not None:
                 "🧾 Challan Summary"
             )
 
-            summary_col1, summary_col2 = (
-                st.columns(2)
-            )
+
+            summary_col1, summary_col2 = st.columns(2)
+
 
             with summary_col1:
 
@@ -742,6 +837,7 @@ if uploaded_file is not None:
                     f"{violation}"
                 )
 
+
             with summary_col2:
 
                 st.write(
@@ -758,7 +854,9 @@ if uploaded_file is not None:
                     "**Status:** ⚠️ Violation Recorded"
                 )
 
+
             st.divider()
+
 
             # =================================================
             # WHATSAPP
@@ -768,10 +866,12 @@ if uploaded_file is not None:
                 "📱 WhatsApp Challan"
             )
 
+
             mobile = owner.get(
                 "mobile",
                 ""
             )
+
 
             if mobile:
 
@@ -781,6 +881,7 @@ if uploaded_file is not None:
                     .replace(" ", "")
                     .replace("-", "")
                 )
+
 
                 if len(mobile) == 10:
 
@@ -792,9 +893,10 @@ if uploaded_file is not None:
 
                     whatsapp_number = mobile
 
-                # ------------------------------------------------
+
+                # ---------------------------------------------
                 # WHATSAPP MESSAGE
-                # ------------------------------------------------
+                # ---------------------------------------------
 
                 message = f"""
 🚦 TRAFFIC CHALLAN NOTIFICATION
@@ -813,11 +915,13 @@ Thank you.
 AI Traffic Challan System
 """
 
+
                 encoded_message = (
                     urllib.parse.quote(
                         message.strip()
                     )
                 )
+
 
                 whatsapp_url = (
                     "https://wa.me/"
@@ -826,16 +930,19 @@ AI Traffic Challan System
                     + encoded_message
                 )
 
+
                 st.link_button(
                     "📱 Send Challan on WhatsApp",
                     whatsapp_url,
                     use_container_width=True
                 )
 
+
                 st.info(
                     "Click the button to open WhatsApp "
                     "with the challan message."
                 )
+
 
             else:
 
@@ -843,6 +950,7 @@ AI Traffic Challan System
                     "No mobile number registered "
                     "for this vehicle."
                 )
+
 
         # ====================================================
         # OWNER NOT FOUND
@@ -854,6 +962,7 @@ AI Traffic Challan System
                 "⚠️ Vehicle number was detected, "
                 "but no matching owner was found."
             )
+
 
             st.markdown(
                 f"""
@@ -871,6 +980,7 @@ AI Traffic Challan System
                 """,
                 unsafe_allow_html=True
             )
+
 
             st.info(
                 "Please register this vehicle in the "
