@@ -1,6 +1,6 @@
 ﻿import os
-import urllib.parse
 import sqlite3
+import urllib.parse
 import streamlit as st
 
 from violation_detection import (
@@ -11,21 +11,47 @@ from violation_detection import (
 )
 
 
-# =========================================================
-# DATABASE INITIALIZATION
-# =========================================================
+# ============================================================
+# PAGE CONFIG
+# ============================================================
+
+st.set_page_config(
+    page_title="AI Traffic Challan System",
+    page_icon="🚦",
+    layout="wide"
+)
+
+
+# ============================================================
+# PATHS
+# ============================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+CHALAN_DB = os.path.join(BASE_DIR, "Chalan.db")
+USER_DB = os.path.join(BASE_DIR, "user.db")
+DRIVERS_DIR = os.path.join(BASE_DIR, "drivers")
+TEMP_DIR = os.path.join(BASE_DIR, "temp")
+
+os.makedirs(DRIVERS_DIR, exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+
+# ============================================================
+# CHALAN DATABASE
+# ============================================================
 
 def initialize_chalan_database():
 
-    conn = sqlite3.connect("Chalan.db")
+    conn = sqlite3.connect(CHALAN_DB)
     cursor = conn.cursor()
 
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS violations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        violation_name TEXT NOT NULL UNIQUE,
-        fine INTEGER NOT NULL
-    )
+        CREATE TABLE IF NOT EXISTS violations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            violation_type TEXT UNIQUE,
+            fine INTEGER
+        )
     """)
 
     violations = [
@@ -35,244 +61,184 @@ def initialize_chalan_database():
         ("Overspeed", 1000)
     ]
 
-    cursor.executemany("""
-    INSERT OR IGNORE INTO violations
-    (
-        violation_name,
-        fine
-    )
-    VALUES (?, ?)
-    """, violations)
+    for violation, fine in violations:
+
+        cursor.execute("""
+            INSERT OR IGNORE INTO violations
+            (violation_type, fine)
+            VALUES (?, ?)
+        """, (violation, fine))
 
     conn.commit()
     conn.close()
 
 
+# ============================================================
+# USER DATABASE
+# ============================================================
+
 def initialize_user_database():
 
-    conn = sqlite3.connect("user.db")
+    conn = sqlite3.connect(USER_DB)
     cursor = conn.cursor()
 
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        vehicle_reg TEXT NOT NULL UNIQUE,
-        vehicle_type TEXT,
-        vehnum TEXT,
-        mobile TEXT,
-        driver_photo TEXT
-    )
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            vehicle_reg TEXT UNIQUE NOT NULL,
+            vehicle_type TEXT,
+            vehnum TEXT,
+            mobile TEXT,
+            driver_photo TEXT
+        )
     """)
 
-    # -----------------------------------------------------
-    # DEMO USER
-    # -----------------------------------------------------
+    # --------------------------------------------------------
+    # DEMO DRIVER DATA
+    # --------------------------------------------------------
+    #
+    # IMPORTANT:
+    # Change vehicle numbers according to your real/demo data.
+    #
+    # driver1.jpg -> TS09PA3330
+    # driver2.jpg -> TS10EX2850
+    # driver3.jpg -> TS10ED8176
+    # driver4.jpg -> TS09AB1234
+    #
+    # --------------------------------------------------------
 
-    users = [
+    drivers = [
         (
-            "Demo User",
-            "TS10EX2850",
+            "Demo Driver 1",
+            "TS09PA3330",
             "Scooty",
             "1662",
             "8688072565",
             "drivers/driver1.jpg"
+        ),
+
+        (
+            "Demo Driver 2",
+            "TS10EX2850",
+            "Bike",
+            "2850",
+            "8688072565",
+            "drivers/driver2.jpg"
+        ),
+
+        (
+            "Demo Driver 3",
+            "TS10ED8176",
+            "Bike",
+            "8176",
+            "8688072565",
+            "drivers/driver3.jpg"
+        ),
+
+        (
+            "Demo Driver 4",
+            "TS09AB1234",
+            "Car",
+            "1234",
+            "8688072565",
+            "drivers/driver4.jpg"
         )
     ]
 
-    cursor.executemany("""
-    INSERT OR IGNORE INTO users
-    (
-        name,
-        vehicle_reg,
-        vehicle_type,
-        vehnum,
-        mobile,
-        driver_photo
-    )
-    VALUES (?, ?, ?, ?, ?, ?)
-    """, users)
+    # --------------------------------------------------------
+    # UPSERT
+    # --------------------------------------------------------
+    # Existing vehicle -> UPDATE
+    # New vehicle -> INSERT
+    # --------------------------------------------------------
+
+    for driver in drivers:
+
+        cursor.execute("""
+            INSERT INTO users
+            (
+                name,
+                vehicle_reg,
+                vehicle_type,
+                vehnum,
+                mobile,
+                driver_photo
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+
+            ON CONFLICT(vehicle_reg)
+            DO UPDATE SET
+                name = excluded.name,
+                vehicle_type = excluded.vehicle_type,
+                vehnum = excluded.vehnum,
+                mobile = excluded.mobile,
+                driver_photo = excluded.driver_photo
+        """, driver)
 
     conn.commit()
     conn.close()
 
 
-# =========================================================
-# RUN DATABASE INITIALIZATION
-# =========================================================
+# ============================================================
+# INITIALIZE DATABASES
+# ============================================================
 
 initialize_chalan_database()
 initialize_user_database()
 
 
-# =========================================================
-# BASE DIRECTORY
-# =========================================================
-
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-TEMP_DIR = os.path.join(
-    BASE_DIR,
-    "temp"
-)
-
-os.makedirs(
-    TEMP_DIR,
-    exist_ok=True
-)
-
-
-# =========================================================
-# PAGE CONFIG
-# =========================================================
-
-st.set_page_config(
-    page_title="AI Traffic Challan System",
-    page_icon="🚦",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-
-# =========================================================
+# ============================================================
 # CUSTOM CSS
-# =========================================================
+# ============================================================
 
-st.markdown(
-    """
-    <style>
+st.markdown("""
+<style>
 
-    /* ---------- MAIN PAGE ---------- */
+.main-title {
+    font-size: 40px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
 
-    .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 2rem;
-        max-width: 1400px;
-    }
+.sub-title {
+    font-size: 18px;
+    color: #666;
+    margin-bottom: 25px;
+}
 
-    .stButton > button,
-    .stLinkButton > a {
-        border-radius: 10px;
-        font-weight: 700;
-        min-height: 46px;
-    }
+.owner-card {
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid #ddd;
+    background-color: #f8f9fa;
+}
 
-    [data-testid="stMetric"] {
-        border: 1px solid rgba(128,128,128,0.22);
-        border-radius: 14px;
-        padding: 12px 16px;
-    }
+.plate-box {
+    padding: 25px;
+    border-radius: 15px;
+    border: 2px solid #ddd;
+    text-align: center;
+    background-color: white;
+}
 
-    [data-testid="stFileUploader"] {
-        border-radius: 14px;
-    }
+.plate-text {
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 4px;
+}
 
-
-    /* ---------- TITLE ---------- */
-
-    .main-title {
-        text-align: center;
-        font-size: 42px;
-        font-weight: 800;
-        margin-bottom: 5px;
-    }
-
-    .main-subtitle {
-        text-align: center;
-        font-size: 17px;
-        margin-bottom: 25px;
-    }
+</style>
+""", unsafe_allow_html=True)
 
 
-    /* ---------- SECTION TITLE ---------- */
-
-    .section-title {
-        font-size: 27px;
-        font-weight: 750;
-        margin-top: 15px;
-        margin-bottom: 15px;
-    }
-
-
-    /* ---------- OWNER CARD ---------- */
-
-    .owner-card {
-        padding: 25px;
-        border-radius: 18px;
-        border: 1px solid rgba(120,120,120,0.25);
-        background: rgba(128,128,128,0.06);
-        min-height: 330px;
-    }
-
-    .owner-name {
-        font-size: 32px;
-        font-weight: 800;
-        margin-bottom: 20px;
-    }
-
-    .detail {
-        font-size: 18px;
-        margin-bottom: 13px;
-    }
-
-
-    /* ---------- PLATE CARD ---------- */
-
-    .plate-card {
-        padding: 22px;
-        border-radius: 16px;
-        border: 2px solid rgba(80,80,80,0.25);
-        text-align: center;
-        margin-top: 10px;
-    }
-
-    .plate-label {
-        font-size: 16px;
-        font-weight: 700;
-        margin-bottom: 8px;
-    }
-
-    .plate-number {
-        font-size: 32px;
-        font-weight: 900;
-        letter-spacing: 3px;
-    }
-
-
-    /* ---------- CHALLAN CARD ---------- */
-
-    .challan-card {
-        padding: 25px;
-        border-radius: 18px;
-        border: 1px solid rgba(120,120,120,0.25);
-        background: rgba(128,128,128,0.05);
-    }
-
-
-    /* ---------- FOOTER ---------- */
-
-    .footer {
-        text-align: center;
-        font-size: 14px;
-        margin-top: 30px;
-        opacity: 0.65;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# =========================================================
+# ============================================================
 # SIDEBAR
-# =========================================================
+# ============================================================
 
 with st.sidebar:
 
-    st.markdown("## 🚦 Traffic Challan")
+    st.title("🚦 Traffic Challan")
 
     st.write(
         "AI-powered traffic violation "
@@ -281,7 +247,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.markdown("### ⚙️ System Features")
+    st.subheader("⚙️ System Features")
 
     st.write("🚨 Violation Detection")
     st.write("🔢 Number Plate Detection")
@@ -290,58 +256,44 @@ with st.sidebar:
     st.write("📷 Driver Photo")
     st.write("📱 WhatsApp Challan")
 
-    st.divider()
 
-    st.caption(
-        "AI + SQL + Streamlit + WhatsApp"
-    )
-
-
-# =========================================================
+# ============================================================
 # HEADER
-# =========================================================
+# ============================================================
 
 st.markdown(
-    '<div class="main-title">🚦 AI TRAFFIC CHALLAN SYSTEM</div>',
+    '<div class="main-title">🚦 AI Traffic Challan System</div>',
     unsafe_allow_html=True
 )
 
 st.markdown(
-    '<div class="main-subtitle">'
-    'AI-Based Traffic Violation Detection and E-Challan Generation'
+    '<div class="sub-title">'
+    'AI-powered traffic violation detection, '
+    'number plate recognition and automated challan generation.'
     '</div>',
     unsafe_allow_html=True
 )
 
-st.divider()
 
+# ============================================================
+# IMAGE UPLOAD
+# ============================================================
 
-# =========================================================
-# UPLOAD SECTION
-# =========================================================
-
-st.markdown(
-    '<div class="section-title">📷 Upload Violation Image</div>',
-    unsafe_allow_html=True
-)
+st.subheader("📷 Upload Traffic Image")
 
 uploaded_file = st.file_uploader(
-    "Choose a traffic violation image",
-    type=["jpg", "jpeg", "png"],
-    help="Upload an image containing a traffic violation."
+    "Upload a traffic image",
+    type=["jpg", "jpeg", "png"]
 )
 
 
-# =========================================================
+# ============================================================
 # PROCESS IMAGE
-# =========================================================
+# ============================================================
 
 if uploaded_file is not None:
 
-    # -----------------------------------------------------
-    # SAVE IMAGE
-    # -----------------------------------------------------
-
+    # Save uploaded image
     image_path = os.path.join(
         TEMP_DIR,
         uploaded_file.name
@@ -350,264 +302,196 @@ if uploaded_file is not None:
     with open(image_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
+    st.success("Image uploaded successfully.")
 
-    # -----------------------------------------------------
-    # IMAGE PREVIEW
-    # -----------------------------------------------------
-
-    st.markdown(
-        '<div class="section-title">🚨 Uploaded Violation</div>',
-        unsafe_allow_html=True
-    )
-
-    preview_col1, preview_col2, preview_col3 = st.columns(
-        [1, 2, 1]
-    )
-
-    with preview_col2:
-
-        st.image(
-            uploaded_file,
-            caption="Violation Image",
-            use_container_width=True
-        )
-
-
-    st.divider()
-
-
-    # =====================================================
-    # GENERATE BUTTON
-    # =====================================================
-
-    generate = st.button(
-        "🚨 GENERATE CHALLAN",
-        type="primary",
+    # Preview
+    st.image(
+        uploaded_file,
+        caption="Uploaded Traffic Image",
         use_container_width=True
     )
 
+    st.divider()
 
-    # =====================================================
-    # GENERATE CHALLAN
-    # =====================================================
+    # ========================================================
+    # GENERATE CHALLAN BUTTON
+    # ========================================================
 
-    if generate:
+    if st.button(
+        "🚨 Generate Challan",
+        type="primary",
+        use_container_width=True
+    ):
 
-        # -------------------------------------------------
-        # STEP 1: VIOLATION
-        # -------------------------------------------------
+        # ====================================================
+        # VIOLATION DETECTION
+        # ====================================================
 
-        with st.spinner(
-            "🔍 Detecting traffic violation..."
-        ):
+        with st.spinner("Detecting traffic violation..."):
 
             try:
 
-                violation = detect_violation(
-                    image_path
-                )
+                violation = detect_violation(image_path)
 
             except Exception as e:
 
                 st.error(
-                    f"Violation detection error: {e}"
+                    f"Violation detection failed: {str(e)}"
                 )
 
                 st.stop()
 
+        # ====================================================
+        # FINE CALCULATION
+        # ====================================================
 
-        if not violation:
+        try:
 
-            st.error(
-                "❌ Could not detect a traffic violation."
+            fine = get_fine(violation)
+
+        except Exception:
+
+            fine = 0
+
+        # ====================================================
+        # NUMBER PLATE DETECTION
+        # ====================================================
+
+        with st.spinner("Detecting vehicle number plate..."):
+
+            try:
+
+                number_plate = detect_number_plate(image_path)
+
+            except Exception as e:
+
+                st.error(
+                    f"Number plate detection failed: {str(e)}"
+                )
+
+                st.stop()
+
+        # ====================================================
+        # CLEAN NUMBER PLATE
+        # ====================================================
+
+        if number_plate:
+
+            number_plate = (
+                str(number_plate)
+                .upper()
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("\n", "")
+                .strip()
             )
 
-            st.stop()
+        else:
 
+            number_plate = "NOT DETECTED"
 
-        # -------------------------------------------------
-        # STEP 2: FINE
-        # -------------------------------------------------
+        # ====================================================
+        # RESULT HEADER
+        # ====================================================
 
-        with st.spinner(
-            "💰 Checking applicable fine..."
-        ):
+        st.markdown("---")
 
-            try:
+        st.header("🚨 Violation Detection Result")
 
-                fine = get_fine(
-                    violation
-                )
+        # ====================================================
+        # METRICS
+        # ====================================================
 
-            except Exception as e:
+        col1, col2, col3 = st.columns(3)
 
-                st.error(
-                    f"Error: {e}"
-                )
-
-                st.stop()
-
-
-        # -------------------------------------------------
-        # STEP 3: NUMBER PLATE
-        # -------------------------------------------------
-
-        with st.spinner(
-            "🔢 Detecting vehicle number plate..."
-        ):
-
-            try:
-
-                number_plate = detect_number_plate(
-                    image_path
-                )
-
-            except Exception as e:
-
-                st.error(
-                    f"Error: {e}"
-                )
-
-                st.stop()
-
-
-        if not number_plate:
-
-            number_plate = "Not Detected"
-
-
-        # =================================================
-        # VIOLATION RESULT
-        # =================================================
-
-        st.markdown(
-            '<div class="section-title">'
-            '🚨 Violation Detection Result'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        result1, result2, result3 = st.columns(3)
-
-
-        with result1:
+        with col1:
 
             st.metric(
                 "🚨 Violation",
                 violation
             )
 
-
-        with result2:
+        with col2:
 
             st.metric(
                 "💰 Fine Amount",
                 f"₹ {fine}"
             )
 
-
-        with result3:
+        with col3:
 
             st.metric(
                 "🔢 Number Plate",
                 number_plate
             )
 
-
         st.divider()
 
-
-        # =================================================
+        # ====================================================
         # FIND OWNER
-        # =================================================
+        # ====================================================
 
-        with st.spinner(
-            "👤 Searching registered vehicle owner..."
-        ):
+        owner = None
+
+        if number_plate != "NOT DETECTED":
 
             try:
 
-                user = get_user(
-                    number_plate
-                )
+                owner = get_user(number_plate)
 
             except Exception as e:
 
                 st.error(
-                    f"Error: {e}"
+                    f"Owner database error: {str(e)}"
                 )
 
-                st.stop()
+        # ====================================================
+        # OWNER FOUND
+        # ====================================================
 
-
-        # =================================================
-        # USER FOUND
-        # =================================================
-
-        if user:
-
-            # -------------------------------------------------
-            # DATABASE VALUES
-            # -------------------------------------------------
-
-            name = user[0]
-            vehicle_reg = user[1]
-            vehicle_type = user[2]
-            vehnum = user[3]
-            mobile = user[4]
-            driver_photo = user[5]
-
+        if owner:
 
             st.success(
-                "✅ Registered vehicle owner found."
+                "✅ Vehicle owner found successfully."
             )
 
+            # ------------------------------------------------
+            # OWNER DETAILS
+            # ------------------------------------------------
 
-            # =================================================
-            # OWNER SECTION
-            # =================================================
+            st.subheader("👤 Vehicle Owner Details")
 
-            st.markdown(
-                '<div class="section-title">'
-                '👤 Vehicle Owner Details'
-                '</div>',
-                unsafe_allow_html=True
-            )
+            owner_col1, owner_col2 = st.columns([1, 2])
 
+            # ------------------------------------------------
+            # DRIVER PHOTO
+            # ------------------------------------------------
 
-            photo_col, details_col = st.columns(
-                [1, 2],
-                gap="large"
-            )
+            with owner_col1:
 
-
-            # -------------------------------------------------
-            # PHOTO
-            # -------------------------------------------------
-
-            with photo_col:
-
-                st.markdown(
-                    "### 📷 Driver Photo"
+                driver_photo = owner.get(
+                    "driver_photo"
                 )
 
                 if driver_photo:
 
-                    clean_photo = driver_photo.replace(
-                        "/",
-                        os.sep
-                    )
+                    # Convert relative path to absolute path
+                    if not os.path.isabs(driver_photo):
 
-                    photo_path = os.path.join(
-                        BASE_DIR,
-                        clean_photo
-                    )
+                        photo_path = os.path.join(
+                            BASE_DIR,
+                            driver_photo
+                        )
 
-                    if os.path.isfile(photo_path):
+                    else:
+
+                        photo_path = driver_photo
+
+                    if os.path.exists(photo_path):
 
                         st.image(
                             photo_path,
-                            caption=name,
+                            caption="Driver Photo",
                             use_container_width=True
                         )
 
@@ -617,261 +501,197 @@ if uploaded_file is not None:
                             "Driver photo not found."
                         )
 
-                        st.caption(
-                            photo_path
-                        )
-
                 else:
 
                     st.warning(
                         "No driver photo registered."
                     )
 
+            # ------------------------------------------------
+            # OWNER INFORMATION
+            # ------------------------------------------------
 
-            # -------------------------------------------------
-            # DETAILS
-            # -------------------------------------------------
-
-            with details_col:
+            with owner_col2:
 
                 st.markdown(
-                    f"""
-                    <div class="owner-card">
-
-                    <div class="owner-name">
-                    👤 {name}
-                    </div>
-
-                    <div class="detail">
-                    🚗 <b>Vehicle Registration:</b>
-                    {vehicle_reg}
-                    </div>
-
-                    <div class="detail">
-                    🏍️ <b>Vehicle Type:</b>
-                    {vehicle_type}
-                    </div>
-
-                    <div class="detail">
-                    🆔 <b>Vehicle ID:</b>
-                    {vehnum}
-                    </div>
-
-                    <div class="detail">
-                    📱 <b>Mobile:</b>
-                    {mobile}
-                    </div>
-
-                    </div>
-                    """,
+                    '<div class="owner-card">',
                     unsafe_allow_html=True
                 )
 
+                st.write(
+                    f"**👤 Name:** "
+                    f"{owner.get('name', 'N/A')}"
+                )
+
+                st.write(
+                    f"**🚗 Vehicle Number:** "
+                    f"{owner.get('vehicle_reg', 'N/A')}"
+                )
+
+                st.write(
+                    f"**🚘 Vehicle Type:** "
+                    f"{owner.get('vehicle_type', 'N/A')}"
+                )
+
+                st.write(
+                    f"**🔢 Vehicle ID:** "
+                    f"{owner.get('vehnum', 'N/A')}"
+                )
+
+                st.write(
+                    f"**📱 Mobile:** "
+                    f"{owner.get('mobile', 'N/A')}"
+                )
+
+                st.markdown(
+                    '</div>',
+                    unsafe_allow_html=True
+                )
 
             st.divider()
-
 
             # =================================================
             # DETECTED PLATE
             # =================================================
 
-            plate_col1, plate_col2, plate_col3 = st.columns(
-                [1, 2, 1]
+            st.subheader("🔢 Detected Number Plate")
+
+            st.markdown(
+                f"""
+                <div class="plate-box">
+                    <div>🔢 DETECTED NUMBER PLATE</div>
+                    <div class="plate-text">
+                        {number_plate}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
             )
 
-            with plate_col2:
-
-                st.markdown(
-                    f"""
-                    <div class="plate-card">
-
-                    <div class="plate-label">
-                    🔢 DETECTED NUMBER PLATE
-                    </div>
-
-                    <div class="plate-number">
-                    {number_plate}
-                    </div>
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-
             st.divider()
-
 
             # =================================================
             # CHALLAN SUMMARY
             # =================================================
 
-            st.markdown(
-                '<div class="section-title">'
-                '📄 Challan Summary'
-                '</div>',
-                unsafe_allow_html=True
-            )
+            st.subheader("🧾 Challan Summary")
 
+            summary_col1, summary_col2 = st.columns(2)
 
-            summary1, summary2 = st.columns(
-                2,
-                gap="large"
-            )
+            with summary_col1:
 
-
-            with summary1:
-
-                st.markdown(
-                    f"""
-                    <div class="challan-card">
-
-                    <h3>👤 Owner Information</h3>
-
-                    <p>👤 <b>Name:</b> {name}</p>
-
-                    <p>🚗 <b>Vehicle:</b> {vehicle_reg}</p>
-
-                    <p>🏍️ <b>Vehicle Type:</b> {vehicle_type}</p>
-
-                    <p>🆔 <b>Vehicle ID:</b> {vehnum}</p>
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                st.write(
+                    f"**Vehicle:** {number_plate}"
                 )
 
-
-            with summary2:
-
-                st.markdown(
-                    f"""
-                    <div class="challan-card">
-
-                    <h3>🚨 Violation Information</h3>
-
-                    <p>🚨 <b>Violation:</b> {violation}</p>
-
-                    <p>💰 <b>Fine:</b> ₹ {fine}</p>
-
-                    <p>🔢 <b>Number Plate:</b> {number_plate}</p>
-
-                    <p>📱 <b>Mobile:</b> {mobile}</p>
-
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                st.write(
+                    f"**Owner:** "
+                    f"{owner.get('name', 'N/A')}"
                 )
 
+                st.write(
+                    f"**Violation:** {violation}"
+                )
+
+            with summary_col2:
+
+                st.write(
+                    f"**Fine Amount:** ₹{fine}"
+                )
+
+                st.write(
+                    f"**Vehicle Type:** "
+                    f"{owner.get('vehicle_type', 'N/A')}"
+                )
+
+                st.write(
+                    "**Status:** ⚠️ Violation Recorded"
+                )
 
             st.divider()
 
-
             # =================================================
-            # WHATSAPP
+            # WHATSAPP CHALLAN
             # =================================================
 
-            st.markdown(
-                '<div class="section-title">'
-                '📱 Send Challan to Vehicle Owner'
-                '</div>',
-                unsafe_allow_html=True
+            st.subheader("📱 WhatsApp Challan")
+
+            mobile = owner.get(
+                "mobile",
+                ""
             )
 
+            if mobile:
 
-            # -------------------------------------------------
-            # PHONE NUMBER
-            # -------------------------------------------------
+                # Remove spaces/symbols
+                mobile = (
+                    str(mobile)
+                    .replace("+", "")
+                    .replace(" ", "")
+                    .replace("-", "")
+                )
 
-            phone = "".join(
-                ch
-                for ch in str(mobile)
-                if ch.isdigit()
-            )
+                # Indian 10 digit number
+                if len(mobile) == 10:
 
+                    whatsapp_number = "91" + mobile
 
-            if len(phone) == 10:
+                else:
 
-                whatsapp_number = "91" + phone
+                    whatsapp_number = mobile
 
-            else:
+                # ------------------------------------------------
+                # MESSAGE
+                # ------------------------------------------------
 
-                whatsapp_number = phone
+                message = f"""
+🚦 TRAFFIC CHALLAN NOTIFICATION
 
+Dear {owner.get('name', 'Vehicle Owner')},
 
-            # -------------------------------------------------
-            # MESSAGE
-            # -------------------------------------------------
+Your vehicle has been detected with a traffic violation.
 
-            whatsapp_message = f"""
-🚦 TRAFFIC CHALLAN ALERT
+Vehicle Number: {number_plate}
+Violation: {violation}
+Fine Amount: ₹{fine}
 
-Dear {name},
-
-A traffic violation has been detected for your vehicle.
-
-━━━━━━━━━━━━━━━━━━
-
-👤 Owner: {name}
-
-🚗 Vehicle Number: {vehicle_reg}
-
-🏍️ Vehicle Type: {vehicle_type}
-
-🔢 Detected Number Plate: {number_plate}
-
-🚨 Violation: {violation}
-
-💰 Fine Amount: ₹{fine}
-
-━━━━━━━━━━━━━━━━━━
-
-Please pay the challan according to the applicable traffic rules.
+Please pay the applicable traffic fine.
 
 Thank you.
-
-🚦 AI Traffic Challan System
+AI Traffic Challan System
 """
 
+                encoded_message = urllib.parse.quote(
+                    message.strip()
+                )
 
-            encoded_message = urllib.parse.quote(
-                whatsapp_message
-            )
-
-
-            whatsapp_url = (
-                "https://wa.me/"
-                + whatsapp_number
-                + "?text="
-                + encoded_message
-            )
-
-
-            # -------------------------------------------------
-            # WHATSAPP BUTTON
-            # -------------------------------------------------
-
-            wa_col1, wa_col2, wa_col3 = st.columns(
-                [1, 2, 1]
-            )
-
-            with wa_col2:
+                whatsapp_url = (
+                    f"https://wa.me/"
+                    f"{whatsapp_number}"
+                    f"?text={encoded_message}"
+                )
 
                 st.link_button(
-                    "📱 SEND CHALLAN ON WHATSAPP",
+                    "📱 Send Challan on WhatsApp",
                     whatsapp_url,
                     use_container_width=True
                 )
 
-
                 st.info(
-                    f"WhatsApp number: +91 {phone}"
+                    "Click the button to open WhatsApp "
+                    "with the challan message."
                 )
 
+            else:
 
-        # =================================================
-        # USER NOT FOUND
-        # =================================================
+                st.warning(
+                    "No mobile number registered "
+                    "for this vehicle."
+                )
+
+        # ====================================================
+        # OWNER NOT FOUND
+        # ====================================================
 
         else:
 
@@ -880,57 +700,33 @@ Thank you.
                 "but no matching owner was found."
             )
 
-
             st.markdown(
                 f"""
-                <div class="plate-card">
-
-                <div class="plate-label">
-                🔢 DETECTED NUMBER PLATE
-                </div>
-
-                <div class="plate-number">
-                {number_plate}
-                </div>
-
+                <div class="plate-box">
+                    <div>🔢 DETECTED NUMBER PLATE</div>
+                    <div class="plate-text">
+                        {number_plate}
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-
             st.info(
-                "Please register this vehicle in "
-                "the User Database before generating "
-                "the owner notification."
+                "Please register this vehicle in the "
+                "User Database before generating the "
+                "owner notification."
             )
 
 
-# =========================================================
-# NO IMAGE
-# =========================================================
-
-else:
-
-    st.info(
-        "👆 Upload a traffic violation image "
-        "to begin the AI detection process."
-    )
-
-
-# =========================================================
+# ============================================================
 # FOOTER
-# =========================================================
+# ============================================================
 
 st.divider()
 
-st.markdown(
-    """
-    <div class="footer">
-    🚦 AI Traffic Challan Automation System
-    &nbsp; | &nbsp;
-    YOLO / AI + SQL + Streamlit + WhatsApp
-    </div>
-    """,
-    unsafe_allow_html=True
+st.caption(
+    "🚦 AI Traffic Challan System | "
+    "Violation Detection • Number Plate Recognition • "
+    "Owner Identification • Automatic Fine • WhatsApp Notification"
 )
