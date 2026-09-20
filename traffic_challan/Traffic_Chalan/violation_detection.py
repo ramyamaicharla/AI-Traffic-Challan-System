@@ -6,22 +6,33 @@ from dotenv import load_dotenv
 from groq import Groq
 
 
-# =========================================================
+# ============================================================
+# BASE DIRECTORY
+# ============================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+CHALAN_DB = os.path.join(BASE_DIR, "Chalan.db")
+USER_DB = os.path.join(BASE_DIR, "user.db")
+
+
+# ============================================================
 # LOAD ENVIRONMENT VARIABLES
-# =========================================================
+# ============================================================
 
 load_dotenv()
 
-
-# =========================================================
-# GROQ API
-# =========================================================
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+
+# ============================================================
+# GROQ CLIENT
+# ============================================================
 
 if not GROQ_API_KEY:
     raise ValueError(
-        "GROQ_API_KEY is not set."
+        "GROQ_API_KEY is missing. "
+        "Add it to .env or Streamlit Secrets."
     )
 
 client = Groq(
@@ -29,76 +40,64 @@ client = Groq(
 )
 
 
-# =========================================================
-# NORMALIZE NUMBER PLATE
-# =========================================================
+# ============================================================
+# IMAGE TO BASE64
+# ============================================================
 
-def normalize_plate(plate):
+def image_to_base64(image_path):
 
-    if not plate:
-        return ""
+    with open(image_path, "rb") as image_file:
 
-    return "".join(
-        ch
-        for ch in str(plate).upper()
-        if ch.isalnum()
-    )
+        encoded_image = base64.b64encode(
+            image_file.read()
+        ).decode("utf-8")
+
+    return encoded_image
 
 
-# =========================================================
+# ============================================================
 # DETECT TRAFFIC VIOLATION
-# =========================================================
+# ============================================================
 
 def detect_violation(image_path):
 
-    with open(image_path, "rb") as f:
-
-        image_base64 = base64.b64encode(
-            f.read()
-        ).decode("utf-8")
-
+    image_base64 = image_to_base64(
+        image_path
+    )
 
     response = client.chat.completions.create(
 
-        model="qwen/qwen3.8-27b",
-
-        max_tokens=100,
+        model="qwen/qwen3-32b",
 
         messages=[
-
             {
                 "role": "user",
 
                 "content": [
-
                     {
                         "type": "text",
 
                         "text": """
 Analyze this traffic image.
 
-Identify ONLY ONE violation.
+Identify the main traffic violation visible
+in the image.
 
-Allowed violations:
+Possible violations are:
 
 1. Triple Ride
 2. No Parking
 3. No Helmet
 4. Overspeed
 
-Return ONLY one of these exact names:
+Return ONLY ONE of the following exact names:
 
 Triple Ride
 No Parking
 No Helmet
 Overspeed
 
-Do not provide:
-- reasoning
-- explanation
-- markdown
-- <think> tags
-- additional text
+Do not provide explanation.
 """
                     },
 
@@ -106,155 +105,94 @@ Do not provide:
                         "type": "image_url",
 
                         "image_url": {
-
-                            "url":
-                            f"data:image/jpeg;base64,{image_base64}"
-
+                            "url": (
+                                "data:image/jpeg;base64,"
+                                + image_base64
+                            )
                         }
                     }
-
                 ]
             }
+        ],
 
-        ]
+        max_tokens=100
     )
-
 
     result = response.choices[0].message.content.strip()
 
-
-    # =====================================================
-    # REMOVE THINK TAGS
-    # =====================================================
-
-    if "<think>" in result:
-
-        if "</think>" in result:
-
-            result = result.split(
-                "</think>"
-            )[-1]
-
-        else:
-
-            result = result.split(
-                "<think>"
-            )[-1]
-
-
-    result = result.strip()
-
-
-    # =====================================================
-    # IDENTIFY VIOLATION
-    # =====================================================
+    # --------------------------------------------------------
+    # Normalize AI response
+    # --------------------------------------------------------
 
     result_lower = result.lower()
-
-
-    if "triple ride" in result_lower:
-
-        return "Triple Ride"
-
-
-    if "no parking" in result_lower:
-
-        return "No Parking"
-
-
-    if "no helmet" in result_lower:
-
-        return "No Helmet"
-
-
-    if "overspeed" in result_lower:
-
-        return "Overspeed"
-
-
-    # =====================================================
-    # HANDLE SLIGHT MODEL VARIATIONS
-    # =====================================================
 
     if "triple" in result_lower:
 
         return "Triple Ride"
 
-
-    if "parking" in result_lower:
+    elif "parking" in result_lower:
 
         return "No Parking"
 
-
-    if "helmet" in result_lower:
+    elif "helmet" in result_lower:
 
         return "No Helmet"
 
-
-    if "overspeed" in result_lower:
+    elif "overspeed" in result_lower:
 
         return "Overspeed"
 
+    else:
 
-    return result
+        return result
 
 
-# =========================================================
+# ============================================================
 # DETECT NUMBER PLATE
-# =========================================================
+# ============================================================
 
 def detect_number_plate(image_path):
 
-    with open(image_path, "rb") as f:
-
-        image_base64 = base64.b64encode(
-            f.read()
-        ).decode("utf-8")
-
+    image_base64 = image_to_base64(
+        image_path
+    )
 
     response = client.chat.completions.create(
 
-        model="qwen/qwen3.8-27b",
-
-        max_tokens=100,
+        model="qwen/qwen3-32b",
 
         messages=[
-
             {
                 "role": "user",
 
                 "content": [
-
                     {
                         "type": "text",
 
                         "text": """
-Read the vehicle registration number plate
-from this image.
+Look carefully at this traffic image.
+
+Find the vehicle registration number plate.
 
 Return ONLY the registration number.
 
-VERY IMPORTANT:
-
-- Do NOT provide reasoning.
-- Do NOT provide <think>.
-- Do NOT provide </think>.
-- Do NOT provide explanations.
-- Do NOT provide markdown.
-- Do NOT write "Number Plate:".
-- Do NOT write "Registration:".
-- Do NOT write any other words.
-- Return only letters and numbers.
-
 Examples:
 
+TS09PA3330
+TS10EX2850
 TS10ED8176
 
-TS09PA3330
+Do not return:
+- explanation
+- spaces
+- hyphens
+- quotation marks
+- other text
 
-MH43BA2518
+If no number plate is visible,
+return:
 
-TS10EX2850
+NOT DETECTED
 """
                     },
 
@@ -262,212 +200,149 @@ TS10EX2850
                         "type": "image_url",
 
                         "image_url": {
-
-                            "url":
-                            f"data:image/jpeg;base64,{image_base64}"
-
+                            "url": (
+                                "data:image/jpeg;base64,"
+                                + image_base64
+                            )
                         }
                     }
-
                 ]
             }
+        ],
 
-        ]
+        max_tokens=100
     )
-
 
     result = response.choices[0].message.content.strip()
 
+    # --------------------------------------------------------
+    # Clean result
+    # --------------------------------------------------------
 
-    # =====================================================
-    # REMOVE THINKING BLOCK
-    # =====================================================
-
-    if "<think>" in result:
-
-        if "</think>" in result:
-
-            result = result.split(
-                "</think>"
-            )[-1]
-
-        else:
-
-            result = result.split(
-                "<think>"
-            )[-1]
-
-
-    # =====================================================
-    # REMOVE COMMON LABELS
-    # =====================================================
-
-    result = result.replace(
-        "Number Plate:",
-        ""
+    result = (
+        result
+        .upper()
+        .replace(" ", "")
+        .replace("-", "")
+        .replace("\n", "")
+        .replace("\r", "")
+        .replace("`", "")
+        .replace('"', "")
+        .replace("'", "")
+        .replace(".", "")
     )
-
-    result = result.replace(
-        "NUMBER PLATE:",
-        ""
-    )
-
-    result = result.replace(
-        "number plate:",
-        ""
-    )
-
-    result = result.replace(
-        "Registration:",
-        ""
-    )
-
-    result = result.replace(
-        "REGISTRATION:",
-        ""
-    )
-
-    result = result.replace(
-        "registration:",
-        ""
-    )
-
-
-    # =====================================================
-    # REMOVE THINK TAGS IF STILL PRESENT
-    # =====================================================
-
-    result = result.replace(
-        "<think>",
-        ""
-    )
-
-    result = result.replace(
-        "</think>",
-        ""
-    )
-
-
-    # =====================================================
-    # CLEAN MARKDOWN
-    # =====================================================
-
-    result = result.replace(
-        "`",
-        ""
-    )
-
-    result = result.replace(
-        "*",
-        ""
-    )
-
-    result = result.replace(
-        "#",
-        ""
-    )
-
-
-    # =====================================================
-    # TAKE LAST NON-EMPTY LINE
-    # =====================================================
-
-    lines = [
-
-        line.strip()
-
-        for line in result.splitlines()
-
-        if line.strip()
-
-    ]
-
-
-    if lines:
-
-        result = lines[-1]
-
-
-    # =====================================================
-    # KEEP ONLY LETTERS AND NUMBERS
-    # =====================================================
-
-    result = "".join(
-
-        ch
-
-        for ch in result.upper()
-
-        if ch.isalnum()
-
-    )
-
 
     return result
 
 
-# =========================================================
+# ============================================================
 # GET FINE
-# =========================================================
+# ============================================================
 
 def get_fine(violation):
 
     conn = sqlite3.connect(
-        "Chalan.db"
+        CHALAN_DB
     )
 
     cursor = conn.cursor()
-
 
     cursor.execute(
         """
         SELECT fine
         FROM violations
-        WHERE LOWER(violation_name)
-        = LOWER(?)
+        WHERE LOWER(violation_type) = LOWER(?)
         """,
-        (violation,)
+        (
+            violation.strip(),
+        )
     )
-
 
     row = cursor.fetchone()
 
     conn.close()
 
-
     if row:
 
         return row[0]
 
-
     return 0
 
 
-# =========================================================
-# GET USER
-# =========================================================
+# ============================================================
+# GET USER / VEHICLE OWNER
+# ============================================================
 
 def get_user(number_plate):
 
-    conn = sqlite3.connect(
+    # --------------------------------------------------------
+    # IMPORTANT:
+    # Always use user.db inside Traffic_Chalan folder
+    # --------------------------------------------------------
+
+    user_db_path = os.path.join(
+        BASE_DIR,
         "user.db"
     )
 
-    cursor = conn.cursor()
+    # --------------------------------------------------------
+    # Normalize detected number
+    # --------------------------------------------------------
 
-
-    detected_plate = normalize_plate(
-        number_plate
+    number_plate = (
+        str(number_plate)
+        .upper()
+        .replace(" ", "")
+        .replace("-", "")
+        .replace("\n", "")
+        .replace("\r", "")
+        .strip()
     )
 
+    if not number_plate:
 
-    # =====================================================
-    # GET ALL USER DETAILS
-    # =====================================================
+        return None
+
+    # --------------------------------------------------------
+    # Connect to correct database
+    # --------------------------------------------------------
+
+    conn = sqlite3.connect(
+        user_db_path
+    )
+
+    conn.row_factory = sqlite3.Row
+
+    cursor = conn.cursor()
+
+    # --------------------------------------------------------
+    # Check users table
+    # --------------------------------------------------------
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            vehicle_reg TEXT UNIQUE NOT NULL,
+            vehicle_type TEXT,
+            vehnum TEXT,
+            mobile TEXT,
+            driver_photo TEXT
+        )
+        """
+    )
+
+    conn.commit()
+
+    # --------------------------------------------------------
+    # Search vehicle
+    # --------------------------------------------------------
 
     cursor.execute(
         """
         SELECT
+            id,
             name,
             vehicle_reg,
             vehicle_type,
@@ -475,197 +350,31 @@ def get_user(number_plate):
             mobile,
             driver_photo
         FROM users
-        """
+        WHERE REPLACE(
+                REPLACE(
+                    UPPER(vehicle_reg),
+                    ' ',
+                    ''
+                ),
+                '-',
+                ''
+              ) = ?
+        """,
+        (
+            number_plate,
+        )
     )
 
-
-    rows = cursor.fetchall()
+    row = cursor.fetchone()
 
     conn.close()
 
+    # --------------------------------------------------------
+    # Return owner
+    # --------------------------------------------------------
 
-    # =====================================================
-    # FIND MATCH
-    # =====================================================
+    if row:
 
-    for row in rows:
-
-        database_plate = normalize_plate(
-            row[1]
-        )
-
-
-        if database_plate == detected_plate:
-
-            return row
-
+        return dict(row)
 
     return None
-
-
-# =========================================================
-# TEST MODE
-# =========================================================
-
-if __name__ == "__main__":
-
-    print()
-
-    print("--------------------------------")
-
-    print(
-        "TRAFFIC VIOLATION DETECTION"
-    )
-
-    print("--------------------------------")
-
-
-    test_image = (
-        r"images\no_helmet.jpg"
-    )
-
-
-    if not os.path.exists(
-        test_image
-    ):
-
-        print(
-            "Image not found:",
-            test_image
-        )
-
-        exit()
-
-
-    # =====================================================
-    # VIOLATION
-    # =====================================================
-
-    print(
-        "Detecting violation..."
-    )
-
-
-    violation = detect_violation(
-        test_image
-    )
-
-
-    print(
-        "Violation:",
-        violation
-    )
-
-
-    # =====================================================
-    # FINE
-    # =====================================================
-
-    fine = get_fine(
-        violation
-    )
-
-
-    print(
-        "Fine: ₹",
-        fine
-    )
-
-
-    # =====================================================
-    # NUMBER PLATE
-    # =====================================================
-
-    print(
-        "Detecting number plate..."
-    )
-
-
-    number_plate = detect_number_plate(
-        test_image
-    )
-
-
-    print(
-        "Number Plate:",
-        number_plate
-    )
-
-
-    # =====================================================
-    # USER
-    # =====================================================
-
-    user = get_user(
-        number_plate
-    )
-
-
-    if user:
-
-        print()
-
-        print(
-            "--------------------------------"
-        )
-
-        print(
-            "USER FOUND"
-        )
-
-        print(
-            "--------------------------------"
-        )
-
-
-        print(
-            "Name:",
-            user[0]
-        )
-
-        print(
-            "Vehicle:",
-            user[1]
-        )
-
-        print(
-            "Vehicle Type:",
-            user[2]
-        )
-
-        print(
-            "Vehicle Number:",
-            user[3]
-        )
-
-        print(
-            "Mobile:",
-            user[4]
-        )
-
-        print(
-            "Driver Photo:",
-            user[5]
-        )
-
-
-    else:
-
-        print()
-
-        print(
-            "--------------------------------"
-        )
-
-        print(
-            "USER NOT FOUND"
-        )
-
-        print(
-            "Number Plate:",
-            number_plate
-        )
-
-        print(
-            "--------------------------------"
-        )
