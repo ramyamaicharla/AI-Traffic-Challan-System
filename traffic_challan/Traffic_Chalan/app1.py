@@ -45,8 +45,29 @@ def initialize_chalan_database():
     conn.close()
 
 
-initialize_chalan_database()
+def initialize_user_database():
 
+    conn = sqlite3.connect("user.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        vehicle_reg TEXT NOT NULL UNIQUE,
+        vehicle_type TEXT,
+        vehnum TEXT,
+        mobile TEXT,
+        driver_photo TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+initialize_chalan_database()
+initialize_user_database()
 
 
 # =========================================================
